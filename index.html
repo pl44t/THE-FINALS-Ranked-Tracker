@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>THE FINALS Ranked Tracker</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="scanline"></div>
+
+  <div class="container">
+    <div class="header">
+      <h1 class="logo">THE FINALS</h1>
+      <button class="nav-btn" onclick="showPage('tracker')">Tracker</button>
+      <button class="nav-btn" onclick="showPage('charts')">Charts</button>
+      <button class="nav-btn" onclick="showPage('settings')">Settings</button>
+    </div>
+
+    <!-- Tracker Page -->
+    <div id="tracker" class="page active">
+      <div class="rs-display">
+        <div class="rs-label" id="playerDisplayName" style="font-size: 1.2rem;">PLAYER</div>
+        <div class="rs-value" id="currentRS">0</div>
+        <div style="margin-top: 1rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+          <img id="rankIcon" src="images/bronze4.png" style="height: 32px; width: 32px;">
+          <span id="rankDisplay" style="font-size: 1.5rem; color: var(--accent);">Bronze 4</span>
+        </div>
+      </div>
+
+      <div class="session-controls">
+        <button class="btn btn-primary" id="startSessionBtn" onclick="startSession()">START SESSION</button>
+        <button class="btn btn-danger" id="endSessionBtn" onclick="endSession()" style="display: none;">END SESSION</button>
+      </div>
+
+      <div id="gameInputSection" style="display: none;">
+        <h2 class="section-title">Add Game</h2>
+        <form class="game-form" id="gameForm" onsubmit="addGame(event)">
+          <div class="form-group">
+            <label for="seed">Seed</label>
+            <select id="seed" required>
+              <option value="">Select</option>
+              <option value="1">Seed 1</option>
+              <option value="2">Seed 2</option>
+              <option value="3">Seed 3</option>
+              <option value="4">Seed 4</option>
+              <option value="5">Seed 5</option>
+              <option value="6">Seed 6</option>
+              <option value="7">Seed 7</option>
+              <option value="8">Seed 8</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="rsChange">RS Change</label>
+            <input type="number" id="rsChange" placeholder="e.g. +1500" required>
+          </div>
+          <div class="form-group">
+            <label for="position">Position</label>
+            <select id="position" required>
+              <option value="">Select</option>
+              <option value="1">1st</option>
+              <option value="2">2nd</option>
+              <option value="3">3rd</option>
+              <option value="4">4th</option>
+              <option value="5">5th</option>
+              <option value="6">6th</option>
+              <option value="7">7th</option>
+              <option value="8">8th</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-secondary">Add Game</button>
+        </form>
+      </div>
+
+      <h2 class="section-title">Sessions</h2>
+      <div class="sessions-list" id="sessionsList">
+        <p style="color: var(--text-secondary);">No sessions yet. Start a session to begin tracking.</p>
+      </div>
+    </div>
+
+    <!-- Charts Page -->
+    <div id="charts" class="page">
+      <h2 class="section-title">Analytics</h2>
+
+      <div class="chart-wrapper">
+        <h3 style="font-size: 0.9rem; color: var(--accent); margin-bottom: 1rem;">RS Progression (All Games)</h3>
+        <canvas id="rsProgressionChart" height="100"></canvas>
+      </div>
+
+      <div class="chart-wrapper">
+        <h3 style="font-size: 0.9rem; color: var(--accent); margin-bottom: 1rem;">Avg RS by Session Length</h3>
+        <canvas id="sessionLengthChart" height="100"></canvas>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-wrapper">
+          <h3 style="font-size: 0.9rem; color: var(--accent); margin-bottom: 1rem;">Avg RS by Seed</h3>
+          <canvas id="seedRsChart" height="120"></canvas>
+        </div>
+        <div class="chart-wrapper">
+          <h3 style="font-size: 0.9rem; color: var(--accent); margin-bottom: 1rem;">Avg Position by Seed</h3>
+          <canvas id="seedPosChart" height="120"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-wrapper">
+        <h3 style="font-size: 0.9rem; color: var(--accent); margin-bottom: 1rem;">Position Distribution</h3>
+        <canvas id="positionDistChart" height="100"></canvas>
+      </div>
+
+      <div class="chart-wrapper">
+        <h3 style="font-size: 0.9rem; color: var(--accent); margin-bottom: 1rem;">Time in Each Rank</h3>
+        <canvas id="rankTimeChart" height="120"></canvas>
+      </div>
+    </div>
+
+    <!-- Settings Page -->
+    <div id="settings" class="page">
+      <div class="settings-page">
+        <h2 class="section-title">Settings</h2>
+
+        <form class="settings-form" id="settingsForm" onsubmit="saveSettings(event)">
+          <div class="form-group">
+            <label for="playerName">Player Name</label>
+            <input type="text" id="playerName" placeholder="Enter your name">
+          </div>
+          <div class="form-group">
+            <label for="manualRS">Current RS</label>
+            <input type="number" id="manualRS" placeholder="Set your current RS">
+          </div>
+          <button type="submit" class="btn btn-primary">Save Settings</button>
+        </form>
+
+        <h3 class="section-title" style="font-size: 1rem;">Data Management</h3>
+        <div class="export-import">
+          <button class="btn btn-secondary" onclick="exportData()">Export CSV</button>
+          <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()">Import CSV</button>
+          <input type="file" id="importFile" class="file-input" accept=".csv" onchange="importData(event)">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
