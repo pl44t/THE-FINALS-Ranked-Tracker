@@ -157,10 +157,25 @@ function addGame(event) {
   document.getElementById('gameForm').reset();
 }
 
-// Get all games from all sessions
+// Get all games from all sessions (oldest to newest for chart progression)
 function getAllGames() {
-  const activeGames = data.activeSession ? data.activeSession.games : [];
-  return [...data.sessions.flatMap(s => s.games), ...activeGames];
+  const allGames = [];
+
+  // Add completed sessions (oldest first - sessions array is newest first, so reverse)
+  [...data.sessions].reverse().forEach(session => {
+    session.games.forEach(game => {
+      allGames.push({ ...game });
+    });
+  });
+
+  // Add active session games (most recent)
+  if (data.activeSession) {
+    data.activeSession.games.forEach(game => {
+      allGames.push({ ...game });
+    });
+  }
+
+  return allGames;
 }
 
 // Rendering
@@ -199,7 +214,7 @@ function renderSessionCard(session, isActive) {
   const avgPosition = (session.games.reduce((sum, g) => sum + parseInt(g.position), 0) / session.games.length).toFixed(2);
 
   let gamesHtml = '';
-  session.games.forEach(game => {
+  [...session.games].reverse().forEach(game => {
     const posLabel = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th'][parseInt(game.position) - 1];
     const changeColor = game.rsChange >= 0 ? 'var(--accent)' : 'var(--accent)';
     gamesHtml += `
@@ -245,7 +260,10 @@ function renderCharts() {
   Object.values(charts).forEach(c => c && c.destroy());
 
   const rsCtx = document.getElementById('rsProgressionChart').getContext('2d');
-  let cumulative = 0;
+  // Calculate starting RS (current RS minus all game changes)
+  const totalChange = games.reduce((sum, g) => sum + g.rsChange, 0);
+  const startingRS = data.currentRS - totalChange;
+  let cumulative = startingRS;
   const rsData = games.map((g) => {
     cumulative += g.rsChange;
     return cumulative;
