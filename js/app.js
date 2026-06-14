@@ -145,10 +145,11 @@ function addGame(event) {
   const seed = document.getElementById('seed').value;
   const rsChange = parseInt(document.getElementById('rsChange').value);
   const position = document.getElementById('position').value;
+  const note = document.getElementById('note').value;
 
   if (!data.activeSession) return;
 
-  const game = { seed, rsChange, position };
+  const game = { seed, rsChange, position, note };
   data.activeSession.games.push(game);
   data.currentRS += rsChange;
   saveData();
@@ -215,13 +216,15 @@ function renderSessionCard(session, isActive) {
 
   let gamesHtml = '';
   [...session.games].reverse().forEach(game => {
-    const posLabel = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th'][parseInt(game.position) - 1];
+    const posLabel = ['1st', '2nd', '3rd', '4th', '5-6th', '7-8th'][parseInt(game.position) - 1] || '';
     const changeColor = game.rsChange >= 0 ? 'var(--accent)' : 'var(--accent)';
+    const escapedNote = (game.note || '').replace(/"/g, '""');
     gamesHtml += `
       <div class="game-item">
         <span>Seed ${game.seed}</span>
         <span style="color: ${changeColor};">${game.rsChange >= 0 ? '+' : ''}${game.rsChange} RS</span>
         <span>${posLabel}</span>
+        <span>${game.note || ''}</span>
       </div>
     `;
   });
@@ -465,17 +468,20 @@ function saveSettings(event) {
 
 // Export/Import
 function exportData() {
-  let csv = 'Date,Session ID,Games,Total RS Change,Avg Position,Seed,RS Change,Position\n';
+  let csv = 'Current RS\n';
+  csv += `${data.currentRS}\n\n`;
+  csv += 'Date,Session ID,Games,Total RS Change,Avg Position,Seed,RS Change,Position,Note\n';
 
   data.sessions.forEach(session => {
     const totalChange = session.games.reduce((sum, g) => sum + g.rsChange, 0);
     const avgPos = (session.games.reduce((sum, g) => sum + parseInt(g.position), 0) / session.games.length).toFixed(2);
 
     session.games.forEach((game, i) => {
+      const note = (game.note || '').includes(',') ? `"${(game.note || '').replace(/"/g, '""')}"` : (game.note || '');
       if (i === 0) {
-        csv += `${new Date(session.date).toISOString()},${session.id},${session.games.length},${totalChange},${avgPos},${game.seed},${game.rsChange},${game.position}\n`;
+        csv += `${new Date(session.date).toISOString()},${session.id},${session.games.length},${totalChange},${avgPos},${game.seed},${game.rsChange},${game.position},${note}\n`;
       } else {
-        csv += `,,,,,${game.seed},${game.rsChange},${game.position}\n`;
+        csv += `,,,,,${game.seed},${game.rsChange},${game.position},${note}\n`;
       }
     });
   });
@@ -489,6 +495,30 @@ function exportData() {
   URL.revokeObjectURL(url);
 }
 
+function parseCSVLine(line) {
+  const result = [];
+  let inQuotes = false;
+  let current = '';
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
 function importData(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -496,18 +526,30 @@ function importData(event) {
   const reader = new FileReader();
   reader.onload = function(e) {
     const lines = e.target.result.split('\n');
+    let currentRS = parseInt(lines[1]?.trim()) || 0;
+    data.currentRS = currentRS;
+
     const sessionMap = {};
     let currentSessionId = null;
+    let inSessionSection = false;
 
-    for (let i = 1; i < lines.length; i++) {
+    for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line) continue;
 
-      const parts = line.split(',');
+      if (line.startsWith('Date,Session ID')) {
+        inSessionSection = true;
+        continue;
+      }
+
+      if (!inSessionSection) continue;
+
+      const parts = parseCSVLine(line);
       const sessionId = parts[1];
       const seed = parts[5];
       const rsChange = parseInt(parts[6]);
       const position = parseInt(parts[7]);
+      const note = parts[8] || '';
 
       const sid = sessionId || currentSessionId;
       if (!sessionMap[sid]) {
@@ -523,13 +565,15 @@ function importData(event) {
         sessionMap[sid].games.push({
           seed: seed,
           rsChange: rsChange || 0,
-          position: (position || 1).toString()
+          position: (position || 1).toString(),
+          note: note
         });
       }
     }
 
     data.sessions = [...Object.values(sessionMap), ...data.sessions];
     saveData();
+    updateDisplay();
     renderSessions();
     event.target.value = '';
   };
