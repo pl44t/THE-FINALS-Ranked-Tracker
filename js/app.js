@@ -388,53 +388,34 @@ function renderCharts() {
     }
   });
 
-  const rankTimeCtx = document.getElementById('rankTimeChart').getContext('2d');
+  const rankGamesCtx = document.getElementById('rankTimeChart').getContext('2d');
   const rankOrder = ['Bronze 4', 'Bronze 3', 'Bronze 2', 'Bronze 1', 'Silver 4', 'Silver 3', 'Silver 2', 'Silver 1', 'Gold 4', 'Gold 3', 'Gold 2', 'Gold 1', 'Platinum 4', 'Platinum 3', 'Platinum 2', 'Platinum 1', 'Diamond 4', 'Diamond 3', 'Diamond 2', 'Diamond 1', 'Ruby'];
-  const rankTimeMap = {};
-  rankOrder.forEach(r => rankTimeMap[r] = 0);
+  const rankGamesMap = {};
+  rankOrder.forEach(r => rankGamesMap[r] = 0);
 
-  if (data.sessions.length > 0) {
-    let prevRS = 0;
-    let prevDate = null;
-
-    [...data.sessions].sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(session => {
-      const sessionRS = session.games.reduce((sum, g) => sum + g.rsChange, 0);
-      const sessionStartRS = prevRS;
-
-      if (prevDate) {
-        const hours = (new Date(session.date) - new Date(prevDate)) / (1000 * 60 * 60);
-        if (hours > 0) {
-          for (let i = 0; i < rankOrder.length; i++) {
-            const rankName = rankOrder[i];
-            const { min, max } = getRankBounds(rankName);
-            if (sessionStartRS >= min && sessionStartRS < max) {
-              rankTimeMap[rankName] += hours;
-              break;
-            }
-          }
-        }
-      } else if (sessionStartRS < 2500) {
-        // First session starts in Bronze 4
-        rankTimeMap['Bronze 4'] += 0;
-      }
-      prevRS += sessionRS;
-      prevDate = session.date;
+  if (games.length > 0) {
+    const totalChange = games.reduce((sum, g) => sum + g.rsChange, 0);
+    let currentRS = data.currentRS - totalChange;
+    games.forEach(game => {
+      const rank = getRank(currentRS);
+      rankGamesMap[rank.name] = (rankGamesMap[rank.name] || 0) + 1;
+      currentRS += game.rsChange;
     });
   }
 
-  charts.rankTime = new Chart(rankTimeCtx, {
+  charts.rankTime = new Chart(rankGamesCtx, {
     type: 'bar',
     data: {
       labels: rankOrder.map(r => r.replace('Platinum', 'Plat')),
       datasets: [{
-        label: 'Hours',
-        data: rankOrder.map(r => rankTimeMap[r] || 0),
+        label: 'Games',
+        data: rankOrder.map(r => rankGamesMap[r] || 0),
         backgroundColor: 'rgba(210, 31, 60, 0.5)',
         borderColor: '#d21f3c',
         borderWidth: 1
       }]
     },
-    options: chartOptions('Time in Each Rank', true)
+    options: chartOptions('Games in Each Rank', true)
   });
 }
 
