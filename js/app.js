@@ -345,7 +345,10 @@ function renderCharts() {
   const seedPosMap = {};
   games.forEach(g => {
     if (!seedPosMap[g.seed]) seedPosMap[g.seed] = [];
-    seedPosMap[g.seed].push(parseInt(g.position));
+    const pos = parseInt(g.position);
+    // Map positions for averaging: 1,2,3,4 stay same, 5,6,7,8 -> 5.5, 7.5 respectively
+    const mappedPos = pos <= 4 ? pos : (pos <= 6 ? 5.5 : 7.5);
+    seedPosMap[g.seed].push(mappedPos);
   });
   const seedPosAvgs = [1,2,3,4,5,6,7,8].map(s => {
     const vals = seedPosMap[s] || [];
@@ -369,14 +372,19 @@ function renderCharts() {
   });
 
   const posDistCtx = document.getElementById('positionDistChart').getContext('2d');
-  const posCounts = [1,2,3,4,5,6,7,8].map(p =>
-    games.filter(g => g.position == p).length
-  );
-  const posPalette = ['#d21f3c', '#e03a55', '#ee5573', '#fc7091', '#ff8caf', '#ffa8c9', '#ffc1e3', '#ffdaf2'];
+  const posCounts = [
+    games.filter(g => g.position == 1).length,
+    games.filter(g => g.position == 2).length,
+    games.filter(g => g.position == 3).length,
+    games.filter(g => g.position == 4).length,
+    games.filter(g => [5, 6].includes(parseInt(g.position))).length,
+    games.filter(g => [7, 8].includes(parseInt(g.position))).length
+  ];
+  const posPalette = ['#d21f3c', '#e03a55', '#ee5573', '#fc7091', '#ff8caf', '#ffa8c9'];
   charts.positionDist = new Chart(posDistCtx, {
     type: 'pie',
     data: {
-      labels: ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th'],
+      labels: ['1st', '2nd', '3rd', '4th', '5-6th', '7-8th'],
       datasets: [{
         data: posCounts,
         backgroundColor: posPalette
