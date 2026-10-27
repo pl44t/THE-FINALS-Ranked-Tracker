@@ -192,12 +192,14 @@ let editingGame = null; // { sessionId, gameIndex }
 function addGame(event) {
   event.preventDefault();
   const seed = document.getElementById('seed').value;
-  const rsChange = parseInt(document.getElementById('rsChange').value);
+  const rsChangeInput = document.getElementById('rsChange').value;
+  const rsChange = parseInt(rsChangeInput);
   const position = document.getElementById('position').value;
   const note = document.getElementById('note').value;
   const map = document.getElementById('map').value;
 
   if (!data.activeSession && !editingGame) return;
+  if (!seed || isNaN(rsChange) || !position) return;
 
   const game = { seed, rsChange, position, note, map };
 
@@ -262,7 +264,7 @@ function recalculateRS() {
   let rs = 0;
   const allGames = getAllGames();
   allGames.forEach(g => rs += g.rsChange);
-  data.currentRS = rs;
+  data.currentRS = Math.max(0, rs);
 }
 
 // Get all games from all sessions (oldest to newest for chart progression)
@@ -272,14 +274,14 @@ function getAllGames() {
   // Add completed sessions (oldest first - sessions array is newest first, so reverse)
   [...data.sessions].reverse().forEach(session => {
     session.games.forEach(game => {
-      allGames.push({ ...game });
+      allGames.push({ ...game, sessionDate: session.date });
     });
   });
 
-  // Add active session games (most recent)
+  // Add active session games (most recent - active session is current)
   if (data.activeSession) {
     data.activeSession.games.forEach(game => {
-      allGames.push({ ...game });
+      allGames.push({ ...game, sessionDate: data.activeSession.date });
     });
   }
 
@@ -381,7 +383,8 @@ function renderCharts() {
   const games = getAllGames();
   if (games.length === 0) return;
 
-  Object.values(charts).forEach(c => c && c.destroy());
+  Object.values(charts).forEach(c => { if (c && typeof c.destroy === 'function') c.destroy(); });
+  charts = {};
 
   const rsCtx = document.getElementById('rsProgressionChart').getContext('2d');
   // Calculate starting RS (current RS minus all game changes)
@@ -492,8 +495,8 @@ function renderCharts() {
     options: {
       ...chartOptions('Avg Position by Seed', true),
       scales: {
-        y: { ticks: { color: '#ffffff', font: { family: 'Courier New' }, autoSkip: false }, grid: { color: 'rgba(255,255,255,0.1)' } },
-        x: { min: 1, max: 8, ticks: { color: '#ffffff', font: { family: 'Courier New' } }, grid: { color: 'rgba(255,255,255,0.1)' } }
+        x: { min: 1, max: 8, ticks: { color: '#ffffff', font: { family: 'Courier New' } }, grid: { color: 'rgba(255,255,255,0.1)' } },
+        y: { ticks: { color: '#ffffff', font: { family: 'Courier New' }, autoSkip: false }, grid: { color: 'rgba(255,255,255,0.1)' } }
       }
     }
   });
@@ -564,20 +567,22 @@ function renderCharts() {
 
   // Map Stats Charts
   const mapStatsWrapper = document.getElementById('mapStatsWrapper');
-  mapStatsWrapper.style.display = 'grid';
+  const mapMap = {};
+  games.forEach(g => {
+    if (!g.map) return;
+    if (!mapMap[g.map]) mapMap[g.map] = { rs: [], pos: [] };
+    mapMap[g.map].rs.push(g.rsChange);
+    const pos = parseInt(g.position);
+    const mappedPos = pos <= 4 ? pos : (pos <= 6 ? 5.5 : 7.5);
+    mapMap[g.map].pos.push(mappedPos);
+  });
+  const mapLabels = Object.keys(mapMap).sort();
 
-  // Avg RS by Map
+  if (mapLabels.length > 0) {
+    mapStatsWrapper.style.display = 'grid';
+
+    // Avg RS by Map
     const mapStatsCtx = document.getElementById('mapStatsChart').getContext('2d');
-    const mapMap = {};
-    games.forEach(g => {
-      if (!g.map) return;
-      if (!mapMap[g.map]) mapMap[g.map] = { rs: [], pos: [] };
-      mapMap[g.map].rs.push(g.rsChange);
-      const pos = parseInt(g.position);
-      const mappedPos = pos <= 4 ? pos : (pos <= 6 ? 5.5 : 7.5);
-      mapMap[g.map].pos.push(mappedPos);
-    });
-    const mapLabels = Object.keys(mapMap).sort();
     const mapAvgs = mapLabels.map(m => {
       const vals = mapMap[m].rs;
       return vals.reduce((sum, v) => sum + v, 0) / vals.length;
@@ -619,6 +624,9 @@ function renderCharts() {
         y: { min: 1, max: 8, ticks: { color: '#ffffff', font: { family: 'Courier New' } }, grid: { color: 'rgba(255,255,255,0.1)' } }
       }}
     });
+  } else {
+    mapStatsWrapper.style.display = 'none';
+  }
 
   const rankGamesCtx = document.getElementById('rankTimeChart').getContext('2d');
   const rankOrder = ['Bronze 4', 'Bronze 3', 'Bronze 2', 'Bronze 1', 'Silver 4', 'Silver 3', 'Silver 2', 'Silver 1', 'Gold 4', 'Gold 3', 'Gold 2', 'Gold 1', 'Platinum 4', 'Platinum 3', 'Platinum 2', 'Platinum 1', 'Diamond 4', 'Diamond 3', 'Diamond 2', 'Diamond 1', 'Ruby'];
@@ -697,7 +705,7 @@ function saveSettings(event) {
 function exportData() {
   let csv = 'Current RS\n';
   csv += `${data.currentRS}\n\n`;
-  csv += 'Date,Session ID,Games,Total RS Change,Avg Position,Seed,RS Change,Position,Note\n';
+  csv += 'Date,Session ID,Games,Total RS Change,Avg Position,Seed,RS Change,Position,Note,Map\n';
 
   data.sessions.forEach(session => {
     const totalChange = session.games.reduce((sum, g) => sum + g.rsChange, 0);
@@ -705,10 +713,11 @@ function exportData() {
 
     session.games.forEach((game, i) => {
       const note = (game.note || '').includes(',') ? `"${(game.note || '').replace(/"/g, '""')}"` : (game.note || '');
+      const map = (game.map || '').includes(',') ? `"${(game.map || '').replace(/"/g, '""')}"` : (game.map || '');
       if (i === 0) {
-        csv += `${new Date(session.date).toISOString()},${session.id},${session.games.length},${totalChange},${avgPos},${game.seed},${game.rsChange},${game.position},${note}\n`;
+        csv += `${new Date(session.date).toISOString()},${session.id},${session.games.length},${totalChange},${avgPos},${game.seed},${game.rsChange},${game.position},${note},${map}\n`;
       } else {
-        csv += `,,,,,${game.seed},${game.rsChange},${game.position},${note}\n`;
+        csv += `,,,,,${game.seed},${game.rsChange},${game.position},${note},${map}\n`;
       }
     });
   });
@@ -777,6 +786,7 @@ function importData(event) {
       const rsChange = parseInt(parts[6]);
       const position = parseInt(parts[7]);
       const note = parts[8] || '';
+      const map = parts[9] || '';
 
       const sid = sessionId || currentSessionId;
       if (!sessionMap[sid]) {
@@ -793,12 +803,16 @@ function importData(event) {
           seed: seed,
           rsChange: rsChange || 0,
           position: (position || 1).toString(),
-          note: note
+          note: note,
+          map: map
         });
       }
     }
 
-    data.sessions = [...Object.values(sessionMap), ...data.sessions];
+    const importedSessions = Object.values(sessionMap);
+    const existingIds = new Set(data.sessions.map(s => s.id));
+    const newSessions = importedSessions.filter(s => !existingIds.has(s.id));
+    data.sessions = [...newSessions, ...data.sessions];
     saveData();
     updateDisplay();
     renderSessions();
