@@ -2,6 +2,7 @@
 let data = {
   playerName: '',
   currentRS: 0,
+  startingRS: 0,
   sessions: [],
   activeSession: null,
   accentColor: '#d21f3c'
@@ -132,7 +133,7 @@ function getRankBounds(rankName) {
 
 function updateDisplay() {
   document.getElementById('currentRS').textContent = data.currentRS;
-  document.getElementById('manualRS').value = data.currentRS;
+  document.getElementById('manualRS').value = data.startingRS || data.currentRS;
   document.getElementById('playerName').value = data.playerName;
 
   const displayName = data.playerName || 'PLAYER';
@@ -261,7 +262,7 @@ function cancelEdit() {
 }
 
 function recalculateRS() {
-  let rs = 0;
+  let rs = data.startingRS || 0;
   const allGames = getAllGames();
   allGames.forEach(g => rs += g.rsChange);
   data.currentRS = Math.max(0, rs);
@@ -387,9 +388,8 @@ function renderCharts() {
   charts = {};
 
   const rsCtx = document.getElementById('rsProgressionChart').getContext('2d');
-  // Calculate starting RS (current RS minus all game changes)
   const totalChange = games.reduce((sum, g) => sum + g.rsChange, 0);
-  const startingRS = data.currentRS - totalChange;
+  const startingRS = data.startingRS || (data.currentRS - totalChange);
   let cumulative = startingRS;
   const rsData = games.map((g) => {
     cumulative += g.rsChange;
@@ -634,8 +634,7 @@ function renderCharts() {
   rankOrder.forEach(r => rankGamesMap[r] = 0);
 
   if (games.length > 0) {
-    const totalChange = games.reduce((sum, g) => sum + g.rsChange, 0);
-    let currentRS = data.currentRS - totalChange;
+    let currentRS = data.startingRS || 0;
     games.forEach(game => {
       const rank = getRank(currentRS);
       rankGamesMap[rank.name] = (rankGamesMap[rank.name] || 0) + 1;
@@ -694,6 +693,7 @@ function saveSettings(event) {
   data.playerName = document.getElementById('playerName').value;
   const newRS = parseInt(document.getElementById('manualRS').value);
   if (!isNaN(newRS)) {
+    data.startingRS = newRS;
     data.currentRS = newRS;
   }
   saveData();
@@ -704,7 +704,7 @@ function saveSettings(event) {
 // Export/Import
 function exportData() {
   let csv = 'Current RS\n';
-  csv += `${data.currentRS}\n\n`;
+  csv += `${data.startingRS || data.currentRS}\n\n`;
   csv += 'Date,Session ID,Games,Total RS Change,Avg Position,Seed,RS Change,Position,Note,Map\n';
 
   data.sessions.forEach(session => {
@@ -764,6 +764,7 @@ function importData(event) {
     const lines = e.target.result.split('\n');
     let currentRS = parseInt(lines[1]?.trim()) || 0;
     data.currentRS = currentRS;
+    data.startingRS = currentRS;
 
     const sessionMap = {};
     let currentSessionId = null;
