@@ -336,7 +336,7 @@ function renderSessionCard(session, isActive) {
     const changeColor = game.rsChange >= 0 ? 'var(--accent)' : '#ff6b6b';
     const escapedNote = (game.note || '').replace(/"/g, '""');
     const mapLabel = game.map || '—';
-    gamesHtml += `
+    gamesHtml = `
       <div class="game-item">
         <span>Seed ${game.seed}</span>
         <span style="color: ${changeColor};">${game.rsChange >= 0 ? '+' : ''}${game.rsChange} RS</span>
@@ -345,7 +345,7 @@ function renderSessionCard(session, isActive) {
         <span>${game.note || ''}</span>
         <button class="btn" style="padding: 0.3rem 0.6rem; font-size: 0.7rem; min-width: 60px;" onclick="editGame(${session.id}, ${gameIndex})">Edit</button>
       </div>
-    `;
+    ` + gamesHtml;
   });
 
   const isCurrentSession = data.activeSession && session.id === data.activeSession.id;
