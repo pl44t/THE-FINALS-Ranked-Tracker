@@ -3,14 +3,28 @@ let data = {
   playerName: '',
   currentRS: 0,
   sessions: [],
-  activeSession: null
+  activeSession: null,
+  accentColor: '#d21f3c'
 };
 
 let charts = {};
 
+// Accent color presets
+const ACCENT_PRESETS = [
+  { name: 'Red', value: '#d21f3c' },
+  { name: 'Blue', value: '#1e90ff' },
+  { name: 'Green', value: '#2ecc71' },
+  { name: 'Orange', value: '#e67e22' },
+  { name: 'Purple', value: '#9b59b6' },
+  { name: 'Cyan', value: '#00bcd4' },
+  { name: 'Yellow', value: '#f1c40f' },
+  { name: 'Pink', value: '#e91e63' }
+];
+
 // Init
 function init() {
   loadData();
+  applyAccentColor(data.accentColor);
   // Restore active session if exists
   if (data.activeSession) {
     document.getElementById('startSessionBtn').style.display = 'none';
@@ -19,6 +33,39 @@ function init() {
   }
   updateDisplay();
   renderSessions();
+  renderAccentPresets();
+}
+
+function applyAccentColor(color) {
+  document.documentElement.style.setProperty('--accent', color);
+  data.accentColor = color;
+}
+
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function renderAccentPresets() {
+  const container = document.getElementById('accentPresets');
+  if (!container) return;
+  container.innerHTML = ACCENT_PRESETS.map(preset => `
+    <button type="button" class="accent-preset ${preset.value === data.accentColor ? 'active' : ''}"
+      style="background: ${preset.value}; width: 36px; height: 36px; border-radius: 50%; border: 3px solid ${preset.value === data.accentColor ? '#fff' : 'transparent'}; cursor: pointer; transition: transform 0.1s, border-color 0.1s;"
+      onclick="setAccentColor('${preset.value}')"
+      title="${preset.name}"></button>
+  `).join('');
+}
+
+function setAccentColor(color) {
+  applyAccentColor(color);
+  saveData();
+  renderAccentPresets();
+  if (document.getElementById('charts').classList.contains('active')) {
+    renderCharts();
+  }
 }
 
 function loadData() {
@@ -140,6 +187,8 @@ function cancelSession() {
 }
 
 // Game management
+let editingGame = null; // { sessionId, gameIndex }
+
 function addGame(event) {
   event.preventDefault();
   const seed = document.getElementById('seed').value;
@@ -147,15 +196,71 @@ function addGame(event) {
   const position = document.getElementById('position').value;
   const note = document.getElementById('note').value;
 
-  if (!data.activeSession) return;
+  if (!data.activeSession && !editingGame) return;
 
   const game = { seed, rsChange, position, note };
-  data.activeSession.games.push(game);
-  data.currentRS += rsChange;
+
+  if (editingGame) {
+    const session = findSession(editingGame.sessionId);
+    if (session) {
+      session.games[editingGame.gameIndex] = game;
+    }
+    editingGame = null;
+    document.getElementById('submitGameBtn').textContent = 'Add Game';
+    document.getElementById('cancelEditBtn').style.display = 'none';
+  } else {
+    data.activeSession.games.push(game);
+  }
+
+  recalculateRS();
   saveData();
   updateDisplay();
   renderSessions();
   document.getElementById('gameForm').reset();
+}
+
+function findSession(sessionId) {
+  if (data.activeSession && data.activeSession.id === sessionId) return data.activeSession;
+  return data.sessions.find(s => s.id === sessionId);
+}
+
+function editGame(sessionId, gameIndex) {
+  const session = findSession(sessionId);
+  if (!session) return;
+
+  const game = session.games[gameIndex];
+  editingGame = { sessionId, gameIndex };
+
+  document.getElementById('seed').value = game.seed;
+  document.getElementById('rsChange').value = game.rsChange;
+  document.getElementById('position').value = game.position;
+  document.getElementById('note').value = game.note || '';
+
+  document.getElementById('startSessionBtn').style.display = 'none';
+  document.getElementById('endSessionBtn').style.display = 'block';
+  document.getElementById('gameInputSection').style.display = 'block';
+  document.getElementById('submitGameBtn').textContent = 'Save Changes';
+  document.getElementById('cancelEditBtn').style.display = 'inline-flex';
+  document.getElementById('seed').focus();
+}
+
+function cancelEdit() {
+  editingGame = null;
+  document.getElementById('gameForm').reset();
+  document.getElementById('submitGameBtn').textContent = 'Add Game';
+  document.getElementById('cancelEditBtn').style.display = 'none';
+  if (!data.activeSession) {
+    document.getElementById('startSessionBtn').style.display = 'block';
+    document.getElementById('endSessionBtn').style.display = 'none';
+    document.getElementById('gameInputSection').style.display = 'none';
+  }
+}
+
+function recalculateRS() {
+  let rs = 0;
+  const allGames = getAllGames();
+  allGames.forEach(g => rs += g.rsChange);
+  data.currentRS = rs;
 }
 
 // Get all games from all sessions (oldest to newest for chart progression)
@@ -210,14 +315,21 @@ function formatTime(date) {
   return `${hours}:${minutes}`;
 }
 
+function getWinRate(games) {
+  if (!games.length) return '0.0';
+  const wins = games.filter(g => g.position == 1).length;
+  return ((wins / games.length) * 100).toFixed(1);
+}
+
 function renderSessionCard(session, isActive) {
   const totalChange = session.games.reduce((sum, g) => sum + g.rsChange, 0);
   const avgPosition = (session.games.reduce((sum, g) => sum + parseInt(g.position), 0) / session.games.length).toFixed(2);
+  const winRate = getWinRate(session.games);
 
   let gamesHtml = '';
-  [...session.games].reverse().forEach(game => {
+  session.games.forEach((game, gameIndex) => {
     const posLabel = ['1st', '2nd', '3rd', '4th', '5-6th', '7-8th'][parseInt(game.position) - 1] || '';
-    const changeColor = game.rsChange >= 0 ? 'var(--accent)' : 'var(--accent)';
+    const changeColor = game.rsChange >= 0 ? 'var(--accent)' : '#ff6b6b';
     const escapedNote = (game.note || '').replace(/"/g, '""');
     gamesHtml += `
       <div class="game-item">
@@ -225,6 +337,7 @@ function renderSessionCard(session, isActive) {
         <span style="color: ${changeColor};">${game.rsChange >= 0 ? '+' : ''}${game.rsChange} RS</span>
         <span>${posLabel}</span>
         <span>${game.note || ''}</span>
+        <button class="btn" style="padding: 0.3rem 0.6rem; font-size: 0.7rem; min-width: 60px;" onclick="editGame(${session.id}, ${gameIndex})">Edit</button>
       </div>
     `;
   });
@@ -248,6 +361,10 @@ function renderSessionCard(session, isActive) {
         <div class="session-stat">
           <div class="stat-value">${avgPosition}</div>
           <div class="stat-label">Avg Pos</div>
+        </div>
+        <div class="session-stat">
+          <div class="stat-value" style="color: var(--accent);">${winRate}%</div>
+          <div class="stat-label">Win Rate</div>
         </div>
       </div>
       <div class="games-in-session">${gamesHtml}</div>
@@ -278,8 +395,8 @@ function renderCharts() {
       datasets: [{
         label: 'RS',
         data: rsData,
-        borderColor: '#d21f3c',
-        backgroundColor: 'rgba(210, 31, 60, 0.1)',
+        borderColor: data.accentColor,
+        backgroundColor: hexToRgba(data.accentColor, 0.1),
         tension: 0.3,
         fill: true
       }]
@@ -307,8 +424,8 @@ function renderCharts() {
       datasets: [{
         label: 'Avg RS',
         data: lengthAvgs,
-        backgroundColor: lengthAvgs.map(v => v >= 0 ? 'rgba(210, 31, 60, 0.6)' : 'rgba(210, 31, 60, 0.4)'),
-        borderColor: '#d21f3c',
+        backgroundColor: lengthAvgs.map(v => v >= 0 ? hexToRgba(data.accentColor, 0.6) : hexToRgba(data.accentColor, 0.4)),
+        borderColor: data.accentColor,
         borderWidth: 1
       }]
     },
@@ -333,8 +450,8 @@ function renderCharts() {
       datasets: [{
         label: 'Avg RS',
         data: seedRsAvgs,
-        backgroundColor: 'rgba(210, 31, 60, 0.5)',
-        borderColor: '#d21f3c',
+        backgroundColor: hexToRgba(data.accentColor, 0.5),
+        borderColor: data.accentColor,
         borderWidth: 1
       }]
     },
@@ -361,8 +478,8 @@ function renderCharts() {
       datasets: [{
         label: 'Avg Position',
         data: seedPosAvgs,
-        backgroundColor: 'rgba(210, 31, 60, 0.5)',
-        borderColor: '#d21f3c',
+        backgroundColor: hexToRgba(data.accentColor, 0.5),
+        borderColor: data.accentColor,
         borderWidth: 1
       }]
     },
@@ -377,10 +494,17 @@ function renderCharts() {
     games.filter(g => g.position == 2).length,
     games.filter(g => g.position == 3).length,
     games.filter(g => g.position == 4).length,
-    games.filter(g => [5, 6].includes(parseInt(g.position))).length,
-    games.filter(g => [7, 8].includes(parseInt(g.position))).length
+    games.filter(g => g.position == 5).length,
+    games.filter(g => g.position == 6).length
   ];
-  const posPalette = ['#d21f3c', '#e03a55', '#ee5573', '#fc7091', '#ff8caf', '#ffa8c9'];
+  const posPalette = [
+    data.accentColor,
+    hexToRgba(data.accentColor, 0.85),
+    hexToRgba(data.accentColor, 0.7),
+    hexToRgba(data.accentColor, 0.55),
+    hexToRgba(data.accentColor, 0.4),
+    hexToRgba(data.accentColor, 0.25)
+  ];
   charts.positionDist = new Chart(posDistCtx, {
     type: 'pie',
     data: {
@@ -393,6 +517,38 @@ function renderCharts() {
     options: {
       responsive: true,
       plugins: { legend: { position: 'bottom', labels: { color: '#ffffff', font: { family: 'Courier New' } } } }
+    }
+  });
+
+  // Win Rate Over Time Chart
+  const winRateCtx = document.getElementById('winRateChart').getContext('2d');
+  const winRateData = [];
+  let wins = 0;
+  let total = 0;
+  games.forEach((game, i) => {
+    total++;
+    if (game.position == 1) wins++;
+    winRateData.push(((wins / total) * 100).toFixed(1));
+  });
+  charts.winRate = new Chart(winRateCtx, {
+    type: 'line',
+    data: {
+      labels: games.map((_, i) => `Game ${i + 1}`),
+      datasets: [{
+        label: 'Win Rate %',
+        data: winRateData,
+        borderColor: data.accentColor,
+        backgroundColor: hexToRgba(data.accentColor, 0.1),
+        tension: 0.3,
+        fill: true
+      }]
+    },
+    options: {
+      ...chartOptions('Win Rate %'),
+      scales: {
+        y: { min: 0, max: 100, ticks: { color: '#ffffff', font: { family: 'Courier New' }, callback: v => v + '%' }, grid: { color: 'rgba(255,255,255,0.1)' } },
+        x: { ticks: { color: '#ffffff', font: { family: 'Courier New' } }, grid: { color: 'rgba(255,255,255,0.1)' } }
+      }
     }
   });
 
@@ -418,8 +574,8 @@ function renderCharts() {
       datasets: [{
         label: 'Games',
         data: rankOrder.map(r => rankGamesMap[r] || 0),
-        backgroundColor: 'rgba(210, 31, 60, 0.5)',
-        borderColor: '#d21f3c',
+        backgroundColor: hexToRgba(data.accentColor, 0.5),
+        borderColor: data.accentColor,
         borderWidth: 1
       }]
     },

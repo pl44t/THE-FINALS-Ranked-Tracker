@@ -225,10 +225,11 @@ body {
 
 .game-item {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 1rem;
   padding: 0.5rem 0;
   font-size: 0.9rem;
+  align-items: center;
 }
 
 .game-item:not(:last-child) {
