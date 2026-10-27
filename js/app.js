@@ -195,10 +195,11 @@ function addGame(event) {
   const rsChange = parseInt(document.getElementById('rsChange').value);
   const position = document.getElementById('position').value;
   const note = document.getElementById('note').value;
+  const map = document.getElementById('map').value;
 
   if (!data.activeSession && !editingGame) return;
 
-  const game = { seed, rsChange, position, note };
+  const game = { seed, rsChange, position, note, map };
 
   if (editingGame) {
     const session = findSession(editingGame.sessionId);
@@ -235,6 +236,7 @@ function editGame(sessionId, gameIndex) {
   document.getElementById('rsChange').value = game.rsChange;
   document.getElementById('position').value = game.position;
   document.getElementById('note').value = game.note || '';
+  document.getElementById('map').value = game.map || '';
 
   document.getElementById('startSessionBtn').style.display = 'none';
   document.getElementById('endSessionBtn').style.display = 'block';
@@ -331,11 +333,13 @@ function renderSessionCard(session, isActive) {
     const posLabel = ['1st', '2nd', '3rd', '4th', '5-6th', '7-8th'][parseInt(game.position) - 1] || '';
     const changeColor = game.rsChange >= 0 ? 'var(--accent)' : '#ff6b6b';
     const escapedNote = (game.note || '').replace(/"/g, '""');
+    const mapLabel = game.map || '—';
     gamesHtml += `
       <div class="game-item">
         <span>Seed ${game.seed}</span>
         <span style="color: ${changeColor};">${game.rsChange >= 0 ? '+' : ''}${game.rsChange} RS</span>
         <span>${posLabel}</span>
+        <span>${mapLabel}</span>
         <span>${game.note || ''}</span>
         <button class="btn" style="padding: 0.3rem 0.6rem; font-size: 0.7rem; min-width: 60px;" onclick="editGame(${session.id}, ${gameIndex})">Edit</button>
       </div>
@@ -435,11 +439,12 @@ function renderCharts() {
   const seedRsCtx = document.getElementById('seedRsChart').getContext('2d');
   const seedRsMap = {};
   games.forEach(g => {
-    if (!seedRsMap[g.seed]) seedRsMap[g.seed] = [];
-    seedRsMap[g.seed].push(g.rsChange);
+    const seed = String(g.seed);
+    if (!seedRsMap[seed]) seedRsMap[seed] = [];
+    seedRsMap[seed].push(g.rsChange);
   });
-  const seedLabels = [1,2,3,4,5,6,7,8].map(s => `Seed ${s}`);
-  const seedRsAvgs = [1,2,3,4,5,6,7,8].map(s => {
+  const seedLabels = ['1','2','3','4','5','6','7','8'].map(s => `Seed ${s}`);
+  const seedRsAvgs = ['1','2','3','4','5','6','7','8'].map(s => {
     const vals = seedRsMap[s] || [];
     return vals.length ? vals.reduce((sum, v) => sum + v, 0) / vals.length : 0;
   });
@@ -461,13 +466,14 @@ function renderCharts() {
   const seedPosCtx = document.getElementById('seedPosChart').getContext('2d');
   const seedPosMap = {};
   games.forEach(g => {
-    if (!seedPosMap[g.seed]) seedPosMap[g.seed] = [];
+    const seed = String(g.seed);
+    if (!seedPosMap[seed]) seedPosMap[seed] = [];
     const pos = parseInt(g.position);
     // Map positions for averaging: 1,2,3,4 stay same, 5,6,7,8 -> 5.5, 7.5 respectively
     const mappedPos = pos <= 4 ? pos : (pos <= 6 ? 5.5 : 7.5);
-    seedPosMap[g.seed].push(mappedPos);
+    seedPosMap[seed].push(mappedPos);
   });
-  const seedPosAvgs = [1,2,3,4,5,6,7,8].map(s => {
+  const seedPosAvgs = ['1','2','3','4','5','6','7','8'].map(s => {
     const vals = seedPosMap[s] || [];
     return vals.length ? vals.reduce((sum, v) => sum + v, 0) / vals.length : 0;
   });
@@ -483,9 +489,13 @@ function renderCharts() {
         borderWidth: 1
       }]
     },
-    options: {...chartOptions('Avg Position by Seed', true), scales: {
-      y: { min: 1, max: 8, ticks: { color: '#ffffff', font: { family: 'Courier New' } }, grid: { color: 'rgba(255,255,255,0.1)' } }
-    }}
+    options: {
+      ...chartOptions('Avg Position by Seed', true),
+      scales: {
+        y: { ticks: { color: '#ffffff', font: { family: 'Courier New' }, autoSkip: false }, grid: { color: 'rgba(255,255,255,0.1)' } },
+        x: { min: 1, max: 8, ticks: { color: '#ffffff', font: { family: 'Courier New' } }, grid: { color: 'rgba(255,255,255,0.1)' } }
+      }
+    }
   });
 
   const posDistCtx = document.getElementById('positionDistChart').getContext('2d');
@@ -552,6 +562,64 @@ function renderCharts() {
     }
   });
 
+  // Map Stats Charts
+  const mapStatsWrapper = document.getElementById('mapStatsWrapper');
+  mapStatsWrapper.style.display = 'grid';
+
+  // Avg RS by Map
+    const mapStatsCtx = document.getElementById('mapStatsChart').getContext('2d');
+    const mapMap = {};
+    games.forEach(g => {
+      if (!g.map) return;
+      if (!mapMap[g.map]) mapMap[g.map] = { rs: [], pos: [] };
+      mapMap[g.map].rs.push(g.rsChange);
+      const pos = parseInt(g.position);
+      const mappedPos = pos <= 4 ? pos : (pos <= 6 ? 5.5 : 7.5);
+      mapMap[g.map].pos.push(mappedPos);
+    });
+    const mapLabels = Object.keys(mapMap).sort();
+    const mapAvgs = mapLabels.map(m => {
+      const vals = mapMap[m].rs;
+      return vals.reduce((sum, v) => sum + v, 0) / vals.length;
+    });
+    charts.mapStats = new Chart(mapStatsCtx, {
+      type: 'bar',
+      data: {
+        labels: mapLabels,
+        datasets: [{
+          label: 'Avg RS',
+          data: mapAvgs,
+          backgroundColor: mapAvgs.map(v => v >= 0 ? hexToRgba(data.accentColor, 0.6) : hexToRgba(data.accentColor, 0.4)),
+          borderColor: data.accentColor,
+          borderWidth: 1
+        }]
+      },
+      options: chartOptions('Avg RS by Map', true)
+    });
+
+    // Avg Position by Map
+    const mapPosCtx = document.getElementById('mapPosChart').getContext('2d');
+    const mapPosAvgs = mapLabels.map(m => {
+      const vals = mapMap[m].pos;
+      return vals.reduce((sum, v) => sum + v, 0) / vals.length;
+    });
+    charts.mapPos = new Chart(mapPosCtx, {
+      type: 'bar',
+      data: {
+        labels: mapLabels,
+        datasets: [{
+          label: 'Avg Position',
+          data: mapPosAvgs,
+          backgroundColor: hexToRgba(data.accentColor, 0.5),
+          borderColor: data.accentColor,
+          borderWidth: 1
+        }]
+      },
+      options: {...chartOptions('Avg Position by Map', true), scales: {
+        y: { min: 1, max: 8, ticks: { color: '#ffffff', font: { family: 'Courier New' } }, grid: { color: 'rgba(255,255,255,0.1)' } }
+      }}
+    });
+
   const rankGamesCtx = document.getElementById('rankTimeChart').getContext('2d');
   const rankOrder = ['Bronze 4', 'Bronze 3', 'Bronze 2', 'Bronze 1', 'Silver 4', 'Silver 3', 'Silver 2', 'Silver 1', 'Gold 4', 'Gold 3', 'Gold 2', 'Gold 1', 'Platinum 4', 'Platinum 3', 'Platinum 2', 'Platinum 1', 'Diamond 4', 'Diamond 3', 'Diamond 2', 'Diamond 1', 'Ruby'];
   const rankGamesMap = {};
@@ -591,8 +659,22 @@ function chartOptions(title, horizontal = false) {
       title: { display: false }
     },
     scales: {
-      y: { ticks: { color: '#ffffff', font: { family: 'Courier New' } }, grid: { color: 'rgba(255,255,255,0.1)' } },
-      x: { ticks: { color: '#ffffff', font: { family: 'Courier New' } }, grid: { color: 'rgba(255,255,255,0.1)' } }
+      y: {
+        ticks: {
+          color: '#ffffff',
+          font: { family: 'Courier New' },
+          autoSkip: horizontal ? false : true
+        },
+        grid: { color: 'rgba(255,255,255,0.1)' }
+      },
+      x: {
+        ticks: {
+          color: '#ffffff',
+          font: { family: 'Courier New' },
+          autoSkip: horizontal ? true : false
+        },
+        grid: { color: 'rgba(255,255,255,0.1)' }
+      }
     },
     indexAxis: horizontal ? 'y' : 'x'
   };

@@ -71,6 +71,24 @@
             <label for="note">Note (optional)</label>
             <input type="text" id="note" placeholder="Add note">
           </div>
+          <div class="form-group" id="mapGroup">
+            <label for="map">Map</label>
+            <select id="map">
+              <option value="">Select Map (optional)</option>
+              <option value="Monaco">Monaco</option>
+              <option value="Seoul">Seoul</option>
+              <option value="Skyway Stadium">Skyway Stadium</option>
+              <option value="Bernal">Bernal</option>
+              <option value="Fangwai City">Fangwai City</option>
+              <option value="Fortune Stadium">Fortune Stadium</option>
+              <option value="Galaxy Estates">Galaxy Estates</option>
+              <option value="Kyoto">Kyoto</option>
+              <option value="Las Vegas Sandstorm">Las Vegas Sandstorm</option>
+              <option value="Las Vegas Stadium">Las Vegas Stadium</option>
+              <option value="NOZOMI/CITADEL">NOZOMI/CITADEL</option>
+              <option value="SYS$HORIZON">SYS$HORIZON</option>
+            </select>
+          </div>
           <div style="display: flex; gap: 1rem;">
             <button type="submit" class="btn btn-secondary" id="submitGameBtn">Add Game</button>
             <button type="button" class="btn" id="cancelEditBtn" onclick="cancelEdit()" style="display: none; background: #444; border-color: #666;">Cancel</button>
@@ -101,11 +119,22 @@
       <div class="charts-grid">
         <div class="chart-wrapper">
           <h3 style="font-size: 0.9rem; color: var(--accent); margin-bottom: 1rem;">Avg RS by Seed</h3>
-          <canvas id="seedRsChart" height="120"></canvas>
+          <canvas id="seedRsChart" height="160"></canvas>
         </div>
         <div class="chart-wrapper">
           <h3 style="font-size: 0.9rem; color: var(--accent); margin-bottom: 1rem;">Avg Position by Seed</h3>
-          <canvas id="seedPosChart" height="120"></canvas>
+          <canvas id="seedPosChart" height="160"></canvas>
+        </div>
+      </div>
+
+      <div class="charts-grid" id="mapStatsWrapper">
+        <div class="chart-wrapper">
+          <h3 style="font-size: 0.9rem; color: var(--accent); margin-bottom: 1rem;">Avg RS by Map</h3>
+          <canvas id="mapStatsChart" height="160"></canvas>
+        </div>
+        <div class="chart-wrapper">
+          <h3 style="font-size: 0.9rem; color: var(--accent); margin-bottom: 1rem;">Avg Position by Map</h3>
+          <canvas id="mapPosChart" height="160"></canvas>
         </div>
       </div>
 
