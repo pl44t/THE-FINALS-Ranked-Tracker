@@ -621,7 +621,8 @@ function renderCharts() {
         }]
       },
       options: {...chartOptions('Avg Position by Map', true), scales: {
-        y: { min: 1, max: 8, ticks: { color: '#ffffff', font: { family: 'Courier New' } }, grid: { color: 'rgba(255,255,255,0.1)' } }
+        x: { min: 1, max: 8, ticks: { color: '#ffffff', font: { family: 'Courier New' } }, grid: { color: 'rgba(255,255,255,0.1)' } },
+        y: { ticks: { color: '#ffffff', font: { family: 'Courier New' }, autoSkip: false }, grid: { color: 'rgba(255,255,255,0.1)' } }
       }}
     });
   } else {
