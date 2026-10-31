@@ -693,7 +693,9 @@ function saveSettings(event) {
   data.playerName = document.getElementById('playerName').value;
   const newRS = parseInt(document.getElementById('manualRS').value);
   if (!isNaN(newRS)) {
-    data.startingRS = newRS;
+    const allGames = getAllGames();
+    const totalGameChange = allGames.reduce((sum, g) => sum + g.rsChange, 0);
+    data.startingRS = newRS - totalGameChange;
     data.currentRS = newRS;
   }
   saveData();
