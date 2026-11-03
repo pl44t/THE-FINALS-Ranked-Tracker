@@ -261,6 +261,32 @@ function cancelEdit() {
   }
 }
 
+function deleteGame(sessionId, gameIndex) {
+  if (!confirm('Delete this game?')) return;
+  const session = findSession(sessionId);
+  if (!session) return;
+
+  session.games.splice(gameIndex, 1);
+  if (session.games.length === 0 && session.id !== data.activeSession?.id) {
+    data.sessions = data.sessions.filter(s => s.id !== sessionId);
+  }
+  saveData();
+  recalculateRS();
+  updateDisplay();
+  renderSessions();
+  renderCharts();
+}
+
+function deleteSession(sessionId) {
+  if (!confirm('Delete entire session and all its games?')) return;
+  data.sessions = data.sessions.filter(s => s.id !== sessionId);
+  saveData();
+  recalculateRS();
+  updateDisplay();
+  renderSessions();
+  renderCharts();
+}
+
 function recalculateRS() {
   let rs = data.startingRS || 0;
   const allGames = getAllGames();
@@ -345,6 +371,7 @@ function renderSessionCard(session, isActive) {
         <span>${mapLabel}</span>
         <span>${game.note || ''}</span>
         <button class="btn" style="padding: 0.3rem 0.6rem; font-size: 0.7rem; min-width: 60px;" onclick="editGame(${session.id}, ${gameIndex})">Edit</button>
+        <button class="btn btn-danger" style="padding: 0.3rem 0.6rem; font-size: 0.7rem; min-width: 60px;" onclick="deleteGame(${session.id}, ${gameIndex})">Delete</button>
       </div>
     ` + gamesHtml;
   });
@@ -357,6 +384,7 @@ function renderSessionCard(session, isActive) {
         <span class="session-date">${new Date(session.date).toLocaleDateString()} @ ${formatTime(session.date)}</span>
         <span style="color: var(--text-primary); margin: 0 1rem;">${isCurrentSession ? 'CURRENT SESSION' : ''}</span>
         <span style="color: var(--accent);">${session.games.length} Games</span>
+        ${!isCurrentSession ? `<button class="btn btn-danger" style="padding: 0.3rem 0.6rem; font-size: 0.7rem; min-width: 80px;" onclick="deleteSession(${session.id})">Delete Session</button>` : ''}
       </div>
       <div class="session-stats">
         <div class="session-stat">
@@ -439,64 +467,96 @@ function renderCharts() {
     options: chartOptions('Avg RS by Session Length')
   });
 
-  const seedRsCtx = document.getElementById('seedRsChart').getContext('2d');
-  const seedRsMap = {};
+  // Seed Performance Heatmap
+  const seedHeatmapCtx = document.getElementById('seedHeatmapChart').getContext('2d');
+  const seedHeatmapMap = {};
   games.forEach(g => {
     const seed = String(g.seed);
-    if (!seedRsMap[seed]) seedRsMap[seed] = [];
-    seedRsMap[seed].push(g.rsChange);
+    if (!seedHeatmapMap[seed]) seedHeatmapMap[seed] = { rs: [], pos: [], wins: 0, games: 0 };
+    seedHeatmapMap[seed].rs.push(g.rsChange);
+    const pos = parseInt(g.position);
+    seedHeatmapMap[seed].pos.push(pos);
+    seedHeatmapMap[seed].games++;
+    if (pos === 1) seedHeatmapMap[seed].wins++;
   });
-  const seedLabels = ['1','2','3','4','5','6','7','8'].map(s => `Seed ${s}`);
-  const seedRsAvgs = ['1','2','3','4','5','6','7','8'].map(s => {
-    const vals = seedRsMap[s] || [];
+  const heatmapSeeds = ['1','2','3','4','5','6','7','8'];
+  const heatmapAvgRs = heatmapSeeds.map(s => {
+    const vals = seedHeatmapMap[s]?.rs || [];
     return vals.length ? vals.reduce((sum, v) => sum + v, 0) / vals.length : 0;
   });
-  charts.seedRs = new Chart(seedRsCtx, {
+  const heatmapAvgPos = heatmapSeeds.map(s => {
+    const vals = seedHeatmapMap[s]?.pos || [];
+    return vals.length ? vals.reduce((sum, v) => sum + v, 0) / vals.length : 0;
+  });
+  const heatmapWinRate = heatmapSeeds.map(s => {
+    const data = seedHeatmapMap[s];
+    return data && data.games ? (data.wins / data.games * 100).toFixed(1) : 0;
+  });
+  const heatmapGames = heatmapSeeds.map(s => seedHeatmapMap[s]?.games || 0);
+
+  charts.seedHeatmap = new Chart(seedHeatmapCtx, {
     type: 'bar',
     data: {
-      labels: seedLabels,
+      labels: heatmapSeeds.map(s => `Seed ${s}`),
       datasets: [{
         label: 'Avg RS',
-        data: seedRsAvgs,
-        backgroundColor: hexToRgba(data.accentColor, 0.5),
+        data: heatmapAvgRs,
+        backgroundColor: heatmapAvgRs.map(v => v >= 0 ? hexToRgba(data.accentColor, 0.6) : hexToRgba('#ff4444', 0.6)),
         borderColor: data.accentColor,
-        borderWidth: 1
-      }]
-    },
-    options: chartOptions('Avg RS by Seed', true)
-  });
-
-  const seedPosCtx = document.getElementById('seedPosChart').getContext('2d');
-  const seedPosMap = {};
-  games.forEach(g => {
-    const seed = String(g.seed);
-    if (!seedPosMap[seed]) seedPosMap[seed] = [];
-    const pos = parseInt(g.position);
-    // Map positions for averaging: 1,2,3,4 stay same, 5,6,7,8 -> 5.5, 7.5 respectively
-    const mappedPos = pos <= 4 ? pos : (pos <= 6 ? 5.5 : 7.5);
-    seedPosMap[seed].push(mappedPos);
-  });
-  const seedPosAvgs = ['1','2','3','4','5','6','7','8'].map(s => {
-    const vals = seedPosMap[s] || [];
-    return vals.length ? vals.reduce((sum, v) => sum + v, 0) / vals.length : 0;
-  });
-  charts.seedPos = new Chart(seedPosCtx, {
-    type: 'bar',
-    data: {
-      labels: seedLabels,
-      datasets: [{
+        borderWidth: 1,
+        yAxisID: 'y'
+      }, {
         label: 'Avg Position',
-        data: seedPosAvgs,
-        backgroundColor: hexToRgba(data.accentColor, 0.5),
-        borderColor: data.accentColor,
-        borderWidth: 1
+        data: heatmapAvgPos,
+        type: 'line',
+        borderColor: '#f1c40f',
+        backgroundColor: hexToRgba('#f1c40f', 0.1),
+        borderWidth: 2,
+        fill: false,
+        tension: 0.3,
+        yAxisID: 'y1',
+        pointBackgroundColor: '#f1c40f',
+        pointRadius: 5
+      }, {
+        label: 'Win Rate %',
+        data: heatmapWinRate,
+        type: 'line',
+        borderColor: '#2ecc71',
+        backgroundColor: hexToRgba('#2ecc71', 0.1),
+        borderWidth: 2,
+        fill: false,
+        tension: 0.3,
+        yAxisID: 'y2',
+        pointBackgroundColor: '#2ecc71',
+        pointRadius: 5
       }]
     },
     options: {
-      ...chartOptions('Avg Position by Seed', true),
+      ...chartOptions('Seed Performance Heatmap'),
       scales: {
-        x: { min: 1, max: 8, ticks: { color: '#ffffff', font: { family: 'Courier New' } }, grid: { color: 'rgba(255,255,255,0.1)' } },
-        y: { ticks: { color: '#ffffff', font: { family: 'Courier New' }, autoSkip: false }, grid: { color: 'rgba(255,255,255,0.1)' } }
+        y: {
+          type: 'linear',
+          position: 'left',
+          ticks: { color: '#ffffff', font: { family: 'Courier New' }, callback: v => v >= 0 ? '+' + v : v },
+          grid: { color: 'rgba(255,255,255,0.1)' }
+        },
+        y1: {
+          type: 'linear',
+          position: 'right',
+          min: 1, max: 8,
+          reverse: true,
+          ticks: { color: '#f1c40f', font: { family: 'Courier New' } },
+          grid: { drawOnChartArea: false }
+        },
+        y2: {
+          type: 'linear',
+          position: 'right',
+          min: 0, max: 100,
+          offset: true,
+          ticks: { color: '#2ecc71', font: { family: 'Courier New' }, callback: v => v + '%' },
+          grid: { drawOnChartArea: false }
+        },
+        x: { ticks: { color: '#ffffff', font: { family: 'Courier New' } }, grid: { color: 'rgba(255,255,255,0.1)' } }
       }
     }
   });
@@ -533,6 +593,12 @@ function renderCharts() {
     }
   });
 
+  // Avg Position & Seed stats
+  const avgPos = games.length ? (games.reduce((sum, g) => sum + parseInt(g.position), 0) / games.length).toFixed(1) : '-';
+  const avgSeed = games.length ? (games.reduce((sum, g) => sum + parseInt(g.seed), 0) / games.length).toFixed(1) : '-';
+  document.getElementById('avgPositionDisplay').textContent = avgPos;
+  document.getElementById('avgSeedDisplay').textContent = avgSeed;
+
   // Win Rate Over Time Chart
   const winRateCtx = document.getElementById('winRateChart').getContext('2d');
   const winRateData = [];
@@ -558,6 +624,54 @@ function renderCharts() {
     },
     options: {
       ...chartOptions('Win Rate %'),
+      scales: {
+        y: { min: 0, max: 100, ticks: { color: '#ffffff', font: { family: 'Courier New' }, callback: v => v + '%' }, grid: { color: 'rgba(255,255,255,0.1)' } },
+        x: { ticks: { color: '#ffffff', font: { family: 'Courier New' } }, grid: { color: 'rgba(255,255,255,0.1)' } }
+      }
+    }
+  });
+
+  // Round Win Rates Chart
+  const roundWinRateCtx = document.getElementById('roundWinRateChart').getContext('2d');
+
+  // Round 1: All games, pass = pos 1-4
+  const round1Games = games.length;
+  const round1Wins = games.filter(g => g.position <= 4).length;
+  const round1Rate = round1Games ? ((round1Wins / round1Games) * 100).toFixed(1) : 0;
+
+  // Round 2: Only games that passed round 1, pass = pos 1-2
+  const round2Games = games.filter(g => g.position <= 4).length;
+  const round2Wins = games.filter(g => g.position <= 2).length;
+  const round2Rate = round2Games ? ((round2Wins / round2Games) * 100).toFixed(1) : 0;
+
+  // Round 3 (Final): Only games that passed round 2, win = pos 1
+  const round3Games = games.filter(g => g.position <= 2).length;
+  const round3Wins = games.filter(g => g.position == 1).length;
+  const round3Rate = round3Games ? ((round3Wins / round3Games) * 100).toFixed(1) : 0;
+
+  // Overall Win Rate: Win = pos 1 out of all games
+  const overallWins = games.filter(g => g.position == 1).length;
+  const overallRate = games.length ? ((overallWins / games.length) * 100).toFixed(1) : 0;
+
+  charts.roundWinRate = new Chart(roundWinRateCtx, {
+    type: 'bar',
+    data: {
+      labels: ['Round 1 (Top 4)', 'Round 2 (Top 2)', 'Round 3 (Win)', 'Overall Win %'],
+      datasets: [{
+        label: 'Win Rate %',
+        data: [round1Rate, round2Rate, round3Rate, overallRate],
+        backgroundColor: [
+          hexToRgba(data.accentColor, 0.6),
+          hexToRgba('#f1c40f', 0.6),
+          hexToRgba('#2ecc71', 0.6),
+          hexToRgba('#3498db', 0.6)
+        ],
+        borderColor: [data.accentColor, '#f1c40f', '#2ecc71', '#3498db'],
+        borderWidth: 2
+      }]
+    },
+    options: {
+      ...chartOptions('Round Win Rates'),
       scales: {
         y: { min: 0, max: 100, ticks: { color: '#ffffff', font: { family: 'Courier New' }, callback: v => v + '%' }, grid: { color: 'rgba(255,255,255,0.1)' } },
         x: { ticks: { color: '#ffffff', font: { family: 'Courier New' } }, grid: { color: 'rgba(255,255,255,0.1)' } }

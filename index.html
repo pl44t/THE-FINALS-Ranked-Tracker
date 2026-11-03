@@ -116,17 +116,6 @@
         <canvas id="sessionLengthChart" height="100"></canvas>
       </div>
 
-      <div class="charts-grid">
-        <div class="chart-wrapper">
-          <h3 style="font-size: 0.9rem; color: var(--accent); margin-bottom: 1rem;">Avg RS by Seed</h3>
-          <canvas id="seedRsChart" height="160"></canvas>
-        </div>
-        <div class="chart-wrapper">
-          <h3 style="font-size: 0.9rem; color: var(--accent); margin-bottom: 1rem;">Avg Position by Seed</h3>
-          <canvas id="seedPosChart" height="160"></canvas>
-        </div>
-      </div>
-
       <div class="charts-grid" id="mapStatsWrapper">
         <div class="chart-wrapper">
           <h3 style="font-size: 0.9rem; color: var(--accent); margin-bottom: 1rem;">Avg RS by Map</h3>
@@ -139,13 +128,27 @@
       </div>
 
       <div class="chart-wrapper">
+        <h3 style="font-size: 0.9rem; color: var(--accent); margin-bottom: 1rem;">Seed Performance Heatmap</h3>
+        <canvas id="seedHeatmapChart" height="200"></canvas>
+      </div>
+
+      <div class="chart-wrapper">
         <h3 style="font-size: 0.9rem; color: var(--accent); margin-bottom: 1rem;">Position Distribution</h3>
         <canvas id="positionDistChart" height="100"></canvas>
+        <div id="avgPosSeedStats" style="margin-top: 1rem; display: flex; gap: 2rem; justify-content: center; font-size: 1.1rem;">
+          <span style="color: var(--accent);">Avg Position: <span id="avgPositionDisplay">-</span></span>
+          <span style="color: #3498db;">Avg Seed: <span id="avgSeedDisplay">-</span></span>
+        </div>
       </div>
 
       <div class="chart-wrapper">
         <h3 style="font-size: 0.9rem; color: var(--accent); margin-bottom: 1rem;">Win Rate Over Time</h3>
         <canvas id="winRateChart" height="100"></canvas>
+      </div>
+
+      <div class="chart-wrapper">
+        <h3 style="font-size: 0.9rem; color: var(--accent); margin-bottom: 1rem;">Round Win Rates</h3>
+        <canvas id="roundWinRateChart" height="120"></canvas>
       </div>
 
       <div class="chart-wrapper">
