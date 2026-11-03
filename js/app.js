@@ -635,7 +635,7 @@ function renderCharts() {
     }
   });
 
-  // Individual Round Win Rates Chart
+  // Winrate% Per Individual Round Chart
   const roundWinRateCtx = document.getElementById('roundWinRateChart').getContext('2d');
 
   // Round 1: All games, pass = pos 1-4
@@ -670,7 +670,7 @@ function renderCharts() {
       }]
     },
     options: {
-      ...chartOptions('Individual Round Win Rates'),
+      ...chartOptions('Winrate% Per Individual Round'),
       scales: {
         y: { min: 0, max: 100, ticks: { color: '#ffffff', font: { family: 'Courier New' }, callback: v => v + '%' }, grid: { color: 'rgba(255,255,255,0.1)' } },
         x: { ticks: { color: '#ffffff', font: { family: 'Courier New' } }, grid: { color: 'rgba(255,255,255,0.1)' } }
