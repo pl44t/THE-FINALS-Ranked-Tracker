@@ -365,13 +365,15 @@ function renderSessionCard(session, isActive) {
     const mapLabel = game.map || '—';
     gamesHtml = `
       <div class="game-item">
-        <span>Seed ${game.seed}</span>
         <span style="color: ${changeColor};">${game.rsChange >= 0 ? '+' : ''}${game.rsChange} RS</span>
         <span>${posLabel}</span>
+        <span>Seed ${game.seed}</span>
         <span>${mapLabel}</span>
         <span>${game.note || ''}</span>
-        <button class="btn" style="padding: 0.3rem 0.6rem; font-size: 0.7rem; min-width: 60px;" onclick="editGame(${session.id}, ${gameIndex})">Edit</button>
-        <button class="btn btn-danger" style="padding: 0.3rem 0.6rem; font-size: 0.7rem; min-width: 60px;" onclick="deleteGame(${session.id}, ${gameIndex})">Delete</button>
+        <div class="game-actions">
+          <button class="btn" style="padding: 0.3rem 0.6rem; font-size: 0.7rem; min-width: 60px;" onclick="editGame(${session.id}, ${gameIndex})">Edit</button>
+          <button class="btn btn-danger" style="padding: 0.3rem 0.6rem; font-size: 0.7rem; min-width: 60px;" onclick="deleteGame(${session.id}, ${gameIndex})">Delete</button>
+        </div>
       </div>
     ` + gamesHtml;
   });
@@ -382,9 +384,11 @@ function renderSessionCard(session, isActive) {
     <div class="session-card">
       <div class="session-header">
         <span class="session-date">${new Date(session.date).toLocaleDateString()} @ ${formatTime(session.date)}</span>
-        <span style="color: var(--text-primary); margin: 0 1rem;">${isCurrentSession ? 'CURRENT SESSION' : ''}</span>
-        <span style="color: var(--accent);">${session.games.length} Games</span>
-        ${!isCurrentSession ? `<button class="btn btn-danger" style="padding: 0.3rem 0.6rem; font-size: 0.7rem; min-width: 80px;" onclick="deleteSession(${session.id})">Delete Session</button>` : ''}
+        <div class="session-header-right">
+          <span style="color: var(--accent);">${session.games.length} Games</span>
+          <span style="color: var(--text-primary); margin: 0 0.5rem;">${isCurrentSession ? 'CURRENT SESSION' : ''}</span>
+          ${!isCurrentSession ? `<button class="btn btn-danger session-delete-btn" onclick="deleteSession(${session.id})">Delete Session</button>` : ''}
+        </div>
       </div>
       <div class="session-stats">
         <div class="session-stat">
@@ -631,7 +635,7 @@ function renderCharts() {
     }
   });
 
-  // Round Win Rates Chart
+  // Round Win Rates Chart (Individual Round Winrate)
   const roundWinRateCtx = document.getElementById('roundWinRateChart').getContext('2d');
 
   // Round 1: All games, pass = pos 1-4
@@ -649,29 +653,24 @@ function renderCharts() {
   const round3Wins = games.filter(g => g.position == 1).length;
   const round3Rate = round3Games ? ((round3Wins / round3Games) * 100).toFixed(1) : 0;
 
-  // Overall Win Rate: Win = pos 1 out of all games
-  const overallWins = games.filter(g => g.position == 1).length;
-  const overallRate = games.length ? ((overallWins / games.length) * 100).toFixed(1) : 0;
-
   charts.roundWinRate = new Chart(roundWinRateCtx, {
     type: 'bar',
     data: {
-      labels: ['Round 1 (Top 4)', 'Round 2 (Top 2)', 'Round 3 (Win)', 'Overall Win %'],
+      labels: ['Round 1 (Top 4)', 'Round 2 (Top 2)', 'Round 3 (Win)'],
       datasets: [{
         label: 'Win Rate %',
-        data: [round1Rate, round2Rate, round3Rate, overallRate],
+        data: [round1Rate, round2Rate, round3Rate],
         backgroundColor: [
           hexToRgba(data.accentColor, 0.6),
           hexToRgba('#f1c40f', 0.6),
-          hexToRgba('#2ecc71', 0.6),
-          hexToRgba('#3498db', 0.6)
+          hexToRgba('#2ecc71', 0.6)
         ],
-        borderColor: [data.accentColor, '#f1c40f', '#2ecc71', '#3498db'],
+        borderColor: [data.accentColor, '#f1c40f', '#2ecc71'],
         borderWidth: 2
       }]
     },
     options: {
-      ...chartOptions('Round Win Rates'),
+      ...chartOptions('Individual Round Winrate'),
       scales: {
         y: { min: 0, max: 100, ticks: { color: '#ffffff', font: { family: 'Courier New' }, callback: v => v + '%' }, grid: { color: 'rgba(255,255,255,0.1)' } },
         x: { ticks: { color: '#ffffff', font: { family: 'Courier New' } }, grid: { color: 'rgba(255,255,255,0.1)' } }
