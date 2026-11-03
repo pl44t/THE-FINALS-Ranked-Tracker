@@ -133,7 +133,7 @@ function getRankBounds(rankName) {
 
 function updateDisplay() {
   document.getElementById('currentRS').textContent = data.currentRS;
-  document.getElementById('manualRS').value = data.startingRS || data.currentRS;
+  document.getElementById('manualRS').value = data.currentRS;
   document.getElementById('playerName').value = data.playerName;
 
   const displayName = data.playerName || 'PLAYER';
