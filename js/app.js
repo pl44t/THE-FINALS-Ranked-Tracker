@@ -648,7 +648,7 @@ function renderCharts() {
   const round2Wins = games.filter(g => g.position <= 2).length;
   const round2Rate = round2Games ? ((round2Wins / round2Games) * 100).toFixed(1) : 0;
 
-  // Round 3 (Final): Only games that passed round 2, win = pos 1
+  // Final Round: Only games that passed round 2, win = pos 1
   const round3Games = games.filter(g => g.position <= 2).length;
   const round3Wins = games.filter(g => g.position == 1).length;
   const round3Rate = round3Games ? ((round3Wins / round3Games) * 100).toFixed(1) : 0;
@@ -656,7 +656,7 @@ function renderCharts() {
   charts.roundWinRate = new Chart(roundWinRateCtx, {
     type: 'bar',
     data: {
-      labels: ['Round 1 (Top 4)', 'Round 2 (Top 2)', 'Round 3 (Win)'],
+      labels: ['Round 1 ', 'Round 2 ', 'Final Round '],
       datasets: [{
         label: 'Win Rate %',
         data: [round1Rate, round2Rate, round3Rate],
