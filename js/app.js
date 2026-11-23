@@ -440,7 +440,21 @@ function renderCharts() {
         fill: true
       }]
     },
-    options: chartOptions('RS Progress')
+    options: {
+      ...chartOptions('RS Progress'),
+      scales: {
+        ...chartOptions('RS Progress').scales,
+        x: {
+          ticks: {
+            color: '#ffffff',
+            font: { family: 'Courier New' },
+            autoSkip: true,
+            maxTicksLimit: 15
+          },
+          grid: { color: 'rgba(255,255,255,0.1)' }
+        }
+      }
+    }
   });
 
   const sessionLengthCtx = document.getElementById('sessionLengthChart').getContext('2d');
